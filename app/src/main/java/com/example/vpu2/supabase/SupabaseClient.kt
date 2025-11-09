@@ -10,7 +10,7 @@ object SupabaseClient {
 
     val client: SupabaseClient = createSupabaseClient(
         supabaseUrl = "https://cllhbgoottqyzayrcosb.supabase.co",
-        //not hiding the password lmao, No point because it's on github.
+        //not hiding the password lmao, No point because it's on github
         supabaseKey = "sb_publishable_MzP4215LuDT6lQ8h5tC-hA_c9in20qo"
     ) {
         install(Postgrest)
