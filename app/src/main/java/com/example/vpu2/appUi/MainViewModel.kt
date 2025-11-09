@@ -29,8 +29,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedArch = MutableStateFlow("x86")
     val selectedArch = _selectedArch.asStateFlow()
 
-    private val _status = MutableStateFlow("Fetching data...")
+    private val _status = MutableStateFlow("")
     val status = _status.asStateFlow()
+
+    private val _isInitialLoadComplete = MutableStateFlow(false)
 
     init {
         val uArchDao = Room.databaseBuilder(
@@ -43,6 +45,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             uArchRepository.getUArchs().collectLatest {
                 _uArchData.value = it
                 filterArchitectures()
+                if (!_isInitialLoadComplete.value && it.isNotEmpty()) {
+                    _isInitialLoadComplete.value = true
+                }
             }
         }
 
@@ -53,13 +58,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 if (isNetworkAvailable()) {
-                    _status.value = "Fetching data from network..."
+                    if (!_isInitialLoadComplete.value) {
+                        _status.value = "Fetching data..."
+                    }
                     uArchRepository.refreshUArchs()
-                    _status.value = "Fetch successful!"
-                    delay(2000)
                     _status.value = ""
+
                 } else {
-                    _status.value = "No network connection, loading from cache."
+                    if (!_isInitialLoadComplete.value) {
+                        _status.value = "No network connection, loading from cache."
+                        delay(2000)
+                        _status.value = ""
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error refreshing data", e)

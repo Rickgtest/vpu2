@@ -1,6 +1,5 @@
 package com.example.vpu2.appUi
 
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,11 +27,8 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,14 +38,42 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import kotlinx.coroutines.delay
-
 
 /**
- * The main content of the home screen.
+ * A wrapper composable that collects state from the [MainViewModel] and passes it to [HomeScreenContent].
+ *
+ * @param mainViewModel The view model for the home screen.
+ * @param onArticleClick A callback to be invoked when an article is clicked.
+ * @param onFoundationCardClick A callback to be invoked when a foundation card is clicked.
+ */
+@Composable
+fun HomeScreen(
+    mainViewModel: MainViewModel,
+    onArticleClick: (UArch) -> Unit,
+    onFoundationCardClick: (String) -> Unit
+) {
+    val allUArchData by mainViewModel.uArchData.collectAsState()
+    val filteredUArchData by mainViewModel.filteredUArchData.collectAsState()
+    val selectedArch by mainViewModel.selectedArch.collectAsState()
+    val status by mainViewModel.status.collectAsState()
+
+    HomeScreenContent(
+        allUArchData = allUArchData,
+        filteredUArchData = filteredUArchData,
+        selectedArch = selectedArch,
+        status = status,
+        onArchSelect = { mainViewModel.setSelectedArch(it) },
+        onArticleClick = onArticleClick,
+        onFoundationCardClick = onFoundationCardClick
+    )
+}
+
+/**
+ * The main composable for the home screen. It lays out the UI components and handles the overall structure of the screen.
  *
  * @param allUArchData The list of all micro-architectures.
  * @param filteredUArchData The list of micro-architectures filtered by the selected architecture.
+ * @param selectedArch The currently selected architecture.
  * @param status The current status of the data fetching.
  * @param onArchSelect A callback to be invoked when an architecture is selected.
  * @param onArticleClick A callback to be invoked when an article is clicked.
@@ -66,26 +90,6 @@ fun HomeScreenContent(
     onArticleClick: (UArch) -> Unit,
     onFoundationCardClick: (String) -> Unit
 ) {
-    var showStatusPopup by remember { mutableStateOf(false) }
-    var previousStatus by remember { mutableStateOf("") }
-    var hasShownInitialPopup by remember { mutableStateOf(false) }
-
-    // Only show popup when status changes from empty to non-empty, and only once
-    LaunchedEffect(status) {
-        if (status.isNotEmpty() && previousStatus.isEmpty() && !hasShownInitialPopup) {
-            showStatusPopup = true
-            hasShownInitialPopup = true
-        }
-        previousStatus = status
-    }
-
-    LaunchedEffect(showStatusPopup) {
-        if (showStatusPopup) {
-            delay(2000)
-            showStatusPopup = false
-        }
-    }
-
     Scaffold(
         containerColor = Color(0xFF121212)
     ) { paddingValues ->
@@ -106,88 +110,73 @@ fun HomeScreenContent(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
-                // Top Lazy Row with Foundation Entries
                 TopLazyRow(
                     allUArchData = allUArchData,
                     onFoundationCardClick = onFoundationCardClick
                 )
 
-                // Architecture Navigation Bar
                 ArchitectureNavBar(
                     selectedArch = selectedArch,
                     onArchSelect = onArchSelect
                 )
 
-                // Reduced gap between navigation bar and content
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Content Lazy Column
-                if (filteredUArchData.isEmpty() && status == "Fetching data...") {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .background(Color(0xFF2D4A2B), RoundedCornerShape(25.dp))
-                                .padding(horizontal = 24.dp, vertical = 12.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.width(20.dp).height(20.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                                Text(
-                                    text = "Fetching data...",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
+                if (filteredUArchData.isEmpty() && (status == "Fetching data..." || status == "No network connection, loading from cache.")) {
+                    LoadingIndicator(status = status)
                 } else {
                     ContentLazyColumn(
-                        allUArchData = allUArchData,
                         filteredUArchData = filteredUArchData,
-                        selectedArch = selectedArch,
                         onArticleClick = onArticleClick
                     )
                 }
-            }
-            if (showStatusPopup) {
-                StatusPopup(status = status)
             }
         }
     }
 }
 
+/**
+ * A composable that shows a loading indicator with a status message.
+ *
+ * @param status The status message to display.
+ */
 @Composable
-fun StatusPopup(status: String) {
-        if (status.isEmpty()) return // Do not draw anything if the status is empty
-
+fun LoadingIndicator(status: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
         Box(
             modifier = Modifier
-                .fillMaxSize(),
-            contentAlignment = Alignment.TopCenter  // ← CHANGED: was Alignment.Center
+                .background(Color(0xFF2D4A2B), RoundedCornerShape(25.dp))
+                .padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .background(Color.DarkGray, RoundedCornerShape(16.dp))
-                    .padding(8.dp, 8.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(text = status, color = Color.White)
+                if (status == "Fetching data...") {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .width(20.dp)
+                            .height(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                }
+                Text(
+                    text = status,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
-
+}
 
 /**
- * A lazy row that displays the foundation entries.
+ * A lazy row that displays the "foundation" entries.
  *
  * @param allUArchData The list of all micro-architectures.
  * @param onFoundationCardClick A callback to be invoked when a foundation card is clicked.
@@ -197,7 +186,6 @@ fun TopLazyRow(
     allUArchData: List<UArch>,
     onFoundationCardClick: (String) -> Unit
 ) {
-    // Filter foundation entries only
     val foundationEntries = allUArchData.filter { it.arch == "foundation" }
 
     LazyRow(
@@ -206,15 +194,9 @@ fun TopLazyRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Foundation concept cards
         items(foundationEntries) { foundation ->
             FoundationCard(
-                title = foundation.name,
-                description = foundation.description ?: "null",
-                imageUrl = foundation.images?.firstOrNull() ?: "mull",
-                modifier = Modifier
-                    .width(280.dp)
-                    .height(120.dp),
+                uArch = foundation,
                 onClick = { onFoundationCardClick(foundation.name) }
             )
         }
@@ -222,32 +204,28 @@ fun TopLazyRow(
 }
 
 /**
- * A card that displays a foundation entry.
+ * A card composable for displaying a single "foundation" entry.
  *
- * @param title The title of the foundation entry.
- * @param description The description of the foundation entry.
- * @param imageUrl The URL of the image for the foundation entry.
- * @param modifier The modifier to be applied to the card.
+ * @param uArch The foundation entry to display.
  * @param onClick A callback to be invoked when the card is clicked.
  */
 @Composable
 fun FoundationCard(
-    title: String,
-    description: String,
-    imageUrl: String,
-    modifier: Modifier = Modifier,
+    uArch: UArch,
     onClick: () -> Unit = {}
 ) {
     Card(
-        modifier = modifier
+        modifier = Modifier
+            .width(280.dp)
+            .height(120.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box {
             AsyncImage(
-                model = imageUrl,
-                contentDescription = title,
+                model = uArch.images?.firstOrNull() ?: "",
+                contentDescription = uArch.name,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -262,7 +240,7 @@ fun FoundationCard(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = title.replace("-", " ").split(" ").joinToString(" ") {
+                    text = uArch.name.replace("-", " ").split(" ").joinToString(" ") {
                         it.replaceFirstChar { char -> char.uppercase() }
                     },
                     color = Color.White,
@@ -281,7 +259,7 @@ fun FoundationCard(
 }
 
 /**
- * A navigation bar that allows the user to select an architecture.
+ * The navigation bar for selecting different CPU architectures.
  *
  * @param selectedArch The currently selected architecture.
  * @param onArchSelect A callback to be invoked when an architecture is selected.
@@ -301,8 +279,8 @@ fun ArchitectureNavBar(
         modifier = Modifier.padding(horizontal = 80.dp),
         indicator = {
             TabRowDefaults.PrimaryIndicator(
-                modifier = Modifier.tabIndicatorOffset(selectedIndex), // Corrected to use selectedIndex directly
-                color = Color(0xFF00FF00) // Green color
+                modifier = Modifier.tabIndicatorOffset(selectedIndex),
+                color = Color(0xFF00FF00)
             )
         },
         divider = {}
@@ -319,14 +297,13 @@ fun ArchitectureNavBar(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 },
-                // Removed interactionSource to eliminate click ripple animation
                 modifier = Modifier
                     .padding(4.dp)
                     .then(
                         if (isSelected) {
                             Modifier.background(
                                 color = Color(0x1AFFFFFF),
-                                shape = RoundedCornerShape(4.dp) // Rounded square
+                                shape = RoundedCornerShape(4.dp)
                             )
                         } else Modifier
                     )
@@ -335,39 +312,32 @@ fun ArchitectureNavBar(
     }
 }
 
-
 /**
- * A lazy column that displays the content of the home screen.
+ * A lazy column that displays the list of micro-architectures.
  *
- * @param allUArchData The list of all micro-architectures.
- * @param filteredUArchData The list of micro-architectures filtered by the selected architecture.
- * @param status The current status of the data fetching.
+ * @param filteredUArchData The list of micro-architectures to display.
  * @param onArticleClick A callback to be invoked when an article is clicked.
  */
 @Composable
 fun ContentLazyColumn(
-    allUArchData: List<UArch>,
     filteredUArchData: List<UArch>,
-    selectedArch: String,
     onArticleClick: (UArch) -> Unit
 ) {
-    // Sort by date (newest to oldest), handling null dates by putting them at the end
     val sortedData = filteredUArchData.sortedWith(
         compareByDescending<UArch> { it.date }
-            .thenBy { it.name } // Secondary sort by name for items without dates
+            .thenBy { it.name }
     )
 
-    // Container for the lazy column with enhanced styling
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0F0F0F)) // Slightly different background for contrast
+            .background(Color(0xFF0F0F0F))
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp), // Increased spacing between cards
+            verticalArrangement = Arrangement.spacedBy(20.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
         ) {
             items(sortedData) { uArch ->
@@ -381,9 +351,9 @@ fun ContentLazyColumn(
 }
 
 /**
- * A card that displays a micro-architecture.
+ * A card composable for displaying a single micro-architecture.
  *
- * @param uArch The micro-architecture to be displayed.
+ * @param uArch The micro-architecture to display.
  * @param onClick A callback to be invoked when the card is clicked.
  */
 @Composable
@@ -397,44 +367,40 @@ fun UArchCard(
             .clickable(onClick = onClick)
             .border(
                 width = 1.dp,
-                color = Color(0x2AFFFFFF), // Subtle white border
+                color = Color(0x2AFFFFFF),
                 shape = RoundedCornerShape(12.dp)
             ),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFF1E1E1E)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp), // Increased elevation
-        shape = RoundedCornerShape(12.dp) // More rounded corners
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Row with square thumbnail and text content
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
-                // Square thumbnail image
                 val imageUrl = uArch.images?.firstOrNull()
-                    ?: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=200&fit=crop"
+                    ?: "https.images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=200&fit=crop"
                 AsyncImage(
                     model = imageUrl,
                     contentDescription = uArch.name,
                     modifier = Modifier
-                        .width(96.dp) // Increased from 80dp
-                        .height(96.dp), // Increased from 80dp
+                        .width(96.dp)
+                        .height(96.dp),
                     contentScale = ContentScale.Crop
                 )
 
                 Spacer(modifier = Modifier.width(24.dp))
 
-                // Text content
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .align(Alignment.Top)
                 ) {
-                    // Architecture tag
                     uArch.arch?.let { arch ->
                         Text(
                             text = arch.uppercase(),
@@ -445,29 +411,26 @@ fun UArchCard(
                         )
                     }
 
-                    // Title
                     Text(
                         text = uArch.name,
                         color = Color.White,
-                        fontSize = 20.sp, // Increased from 18sp
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
-                    // Description
                     uArch.description?.let { description ->
-                        val truncatedDescription = if (description.length > 30) { // Increased from 25
+                        val truncatedDescription = if (description.length > 30) {
                             "${description.take(30)}..."
                         } else description
                         Text(
                             text = truncatedDescription,
-                            color = Color(0xFFE0E0E0), // Slightly lighter gray for better visibility
-                            fontSize = 15.sp, // Increased from 14sp
+                            color = Color(0xFFE0E0E0),
+                            fontSize = 15.sp,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                     }
 
-                    // Footer with date and read button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically

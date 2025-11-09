@@ -54,6 +54,7 @@ fun DetailScreenContent(uArch: UArch?, onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFF121212))
+                .systemBarsPadding()
         ) {
             Column(
                 modifier = Modifier
@@ -146,8 +147,7 @@ fun DetailScreenContent(uArch: UArch?, onBack: () -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .statusBarsPadding(),
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
